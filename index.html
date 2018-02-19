@@ -1,0 +1,619 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<title>Chess</title>
+	</head>
+	<body>
+		<script type="text/javascript">
+			<!--
+			// Author: Saulo Fonseca
+			// Last update: 30.05.2013
+			// Description: Chess game
+			// Contact: saulo@astrotown.de
+			-->
+			
+			// Load images to speed-up.
+			var img = [];
+			for (var i=0; i<26; i++)
+				img[i] = new Image();
+			img[0].src = 'Black-bishop.png';
+			img[1].src = 'Black-king.png';
+			img[2].src = 'Black-knight.png';
+			img[3].src = 'Black-pawn.png';
+			img[4].src = 'Black-queen.png';
+			img[5].src = 'Black-rook.png';
+			img[6].src = 'Empty.png';
+			img[7].src = 'Mark-Black-bishop.png';
+			img[8].src = 'Mark-Black-king.png';
+			img[9].src = 'Mark-Black-knight.png';
+			img[10].src = 'Mark-Black-pawn.png';
+			img[11].src = 'Mark-Black-queen.png';
+			img[12].src = 'Mark-Black-rook.png';
+			img[13].src = 'Mark-Empty.png';
+			img[14].src = 'Mark-White-bishop.png';
+			img[15].src = 'Mark-White-king.png';
+			img[16].src = 'Mark-White-knight.png';
+			img[17].src = 'Mark-White-pawn.png';
+			img[18].src = 'Mark-White-queen.png';
+			img[19].src = 'Mark-White-rook.png';
+			img[20].src = 'White-bishop.png';
+			img[21].src = 'White-king.png';
+			img[22].src = 'White-knight.png';
+			img[23].src = 'White-pawn.png';
+			img[24].src = 'White-queen.png';
+			img[25].src = 'White-rook.png';
+
+			// -->
+		</script>
+		<table style="border-collapse: collapse" align='center' border=1>
+		<script type="text/javascript">
+			<!--
+			// Show table.
+			var black = false;
+			for (var i=0; i<8; i++) {
+				document.write("<tr>");
+				for (var j=0; j<8; j++) {
+					if (black)
+						document.write("<td style=\"padding: 0\" bgcolor='#E37E2B'>");
+					else
+						document.write("<td style=\"padding: 0\" bgcolor='#FAC383'>");
+					document.write("<div id='"+"i"+i+"j"+j+"' onclick='game.play("+i+","+j+");'><img src='Empty.png'></div>");
+					black = !black;
+					document.write("</td>");
+				}
+				document.write("</tr>");
+				black = !black;
+			}
+			document.write("</table>");
+			// -->
+		</script>
+		<p>
+		<div style="text-align:center" id="bottom">Click in one of the white pieces to play</div>
+		<script type="text/javascript">
+			<!--
+			// Simulate a class.
+			function Chess() {
+				
+				// Class variables.
+				this.matrix = 	[[-5,-3,-4, -9,-100,-4,-3,-5],
+								 [-1,-1,-1, -1,  -1,-1,-1,-1],
+								 [ 0, 0, 0,  0,   0, 0, 0, 0],
+								 [ 0, 0, 0,  0,   0, 0, 0, 0],
+								 [ 0, 0, 0,  0,   0, 0, 0, 0],
+								 [ 0, 0, 0,  0,   0, 0, 0, 0],
+								 [ 1, 1, 1,  1,   1, 1, 1, 1],
+								 [ 5, 3, 4,  9, 100, 4, 3, 5]];
+				this.sucessor = [];
+				for (var i=0; i<8; i++)
+	 				this.sucessor.push(this.matrix[i].slice());
+				this.won = false;
+				this.winner = "";
+				this.move = false;
+				this.moveI = 0;
+				this.moveJ = 0;
+				this.blackMoveOriginalI = 0;
+				this.blackMoveOriginalJ = 0;
+				this.blackMoveI = 0;
+				this.blackMoveJ = 0;
+ 				this.playAgain =  "<p><center>"+
+									"<form>"+
+										"<input type='button' name='Restart' value='Play again' onclick=\"window.location='index.html'\">"+
+									"</form>"+
+								"</center>";					
+
+				// Methods
+				
+				// Central part of the game.
+				this.play = function(i,j) {
+					if (!this.won) {
+						// Select the white piece.
+						if (!this.move && this.matrix[i][j] > 0) {
+							document.getElementById("bottom").innerHTML = "Click where you want to put this piece";
+							this.move = true;
+							this.moveI = i;
+							this.moveJ = j;
+							this.showMarks();
+						}
+						
+						// Concludes the ply.
+						else if (this.move && this.matrix[i][j] <= 0 && this.valid(i,j)) {
+
+							// Human plays.
+							this.matrix[i][j] = this.matrix[this.moveI][this.moveJ];
+							this.matrix[this.moveI][this.moveJ] = 0;
+							this.show();
+							this.won = this.solutionFound();
+							if (this.won)
+								document.getElementById("bottom").innerHTML = this.winner;
+							this.move = false;
+							
+							// Computer plays.
+							if (!this.won) {
+								this.alphaBetaSearch(false,-9999,9999,0); // By false "min" plays.
+
+								// Move decapsulation.
+								this.blackMoveOriginalI = this.sucessor[8][0];
+								this.blackMoveOriginalJ = this.sucessor[8][1];
+								this.blackMoveI = this.sucessor[8][2];
+								this.blackMoveJ = this.sucessor[8][3];
+
+								for (var i=0; i<8; i++)
+									this.matrix[i] = this.sucessor[i].slice();
+								this.show();
+								this.showBlackMove();
+								this.won = this.solutionFound();
+								if (this.won)
+									document.getElementById("bottom").innerHTML = this.winner;
+								else
+									document.getElementById("bottom").innerHTML = "Click in one of the white pieces to play";
+							}
+						}
+						else {
+							document.getElementById("bottom").innerHTML = "Error - Click in one of the white pieces to play";
+							this.move = false;
+							this.show();
+						}
+					}
+				};
+
+				// Updates the screen with the matrix.
+				this.show = function() {
+					for (var i=0; i<8; i++) {
+						for (var j=0; j<8; j++) {
+							if (this.matrix[i][j] === 0)
+								document.getElementById("i"+i+"j"+j).innerHTML = "<img src='Empty.png'>";
+							else if (this.matrix[i][j] === -5)
+								document.getElementById("i"+i+"j"+j).innerHTML = "<img src='Black-rook.png'>";
+							else if (this.matrix[i][j] === -3)
+								document.getElementById("i"+i+"j"+j).innerHTML = "<img src='Black-knight.png'>";
+							else if (this.matrix[i][j] === -4)
+								document.getElementById("i"+i+"j"+j).innerHTML = "<img src='Black-bishop.png'>";
+							else if (this.matrix[i][j] === -9)
+								document.getElementById("i"+i+"j"+j).innerHTML = "<img src='Black-queen.png'>";
+							else if (this.matrix[i][j] === -100)
+								document.getElementById("i"+i+"j"+j).innerHTML = "<img src='Black-king.png'>";
+							else if (this.matrix[i][j] === -1)
+								document.getElementById("i"+i+"j"+j).innerHTML = "<img src='Black-pawn.png'>";
+							else if (this.matrix[i][j] ===  5)
+								document.getElementById("i"+i+"j"+j).innerHTML = "<img src='White-rook.png'>";
+							else if (this.matrix[i][j] ===  3)
+								document.getElementById("i"+i+"j"+j).innerHTML = "<img src='White-knight.png'>";
+							else if (this.matrix[i][j] ===  4)
+								document.getElementById("i"+i+"j"+j).innerHTML = "<img src='White-bishop.png'>";
+							else if (this.matrix[i][j] ===  9)
+								document.getElementById("i"+i+"j"+j).innerHTML = "<img src='White-queen.png'>";
+							else if (this.matrix[i][j] ===  100)
+								document.getElementById("i"+i+"j"+j).innerHTML = "<img src='White-king.png'>";
+							else if (this.matrix[i][j] === 1)
+								document.getElementById("i"+i+"j"+j).innerHTML = "<img src='White-pawn.png'>";
+						}
+					}
+				};
+				
+				// Updates the screen with the matrix with marks.
+				this.showMarks = function() {
+					for (var i=0; i<8; i++) {
+						for (var j=0; j<8; j++) {
+							if (this.valid(i,j)) {
+								if (this.matrix[i][j] === 0)
+									document.getElementById("i"+i+"j"+j).innerHTML = "<img src='Mark-Empty.png'>";
+								else if (this.matrix[i][j] === -5)
+									document.getElementById("i"+i+"j"+j).innerHTML = "<img src='Mark-Black-rook.png'>";
+								else if (this.matrix[i][j] === -3)
+									document.getElementById("i"+i+"j"+j).innerHTML = "<img src='Mark-Black-knight.png'>";
+								else if (this.matrix[i][j] === -4)
+									document.getElementById("i"+i+"j"+j).innerHTML = "<img src='Mark-Black-bishop.png'>";
+								else if (this.matrix[i][j] === -9)
+									document.getElementById("i"+i+"j"+j).innerHTML = "<img src='Mark-Black-queen.png'>";
+								else if (this.matrix[i][j] === -100)
+									document.getElementById("i"+i+"j"+j).innerHTML = "<img src='Mark-Black-king.png'>";
+								else if (this.matrix[i][j] === -1)
+									document.getElementById("i"+i+"j"+j).innerHTML = "<img src='Mark-Black-pawn.png'>";
+								else if (this.matrix[i][j] ===  5)
+									document.getElementById("i"+i+"j"+j).innerHTML = "<img src='Mark-White-rook.png'>";
+								else if (this.matrix[i][j] ===  3)
+									document.getElementById("i"+i+"j"+j).innerHTML = "<img src='Mark-White-knight.png'>";
+								else if (this.matrix[i][j] ===  4)
+									document.getElementById("i"+i+"j"+j).innerHTML = "<img src='Mark-White-bishop.png'>";
+								else if (this.matrix[i][j] ===  9)
+									document.getElementById("i"+i+"j"+j).innerHTML = "<img src='Mark-White-queen.png'>";
+								else if (this.matrix[i][j] ===  100)
+									document.getElementById("i"+i+"j"+j).innerHTML = "<img src='Mark-White-king.png'>";
+								else if (this.matrix[i][j] === 1)
+									document.getElementById("i"+i+"j"+j).innerHTML = "<img src='Mark-White-pawn.png'>";
+							}
+						}
+					}
+				};
+						
+				// Updates the screen with marks for the move from the black piece.
+				this.showBlackMove = function() {
+					for (var i=0; i<8; i++) {
+						for (var j=0; j<8; j++) {
+							if ((this.blackMoveOriginalI === i && this.blackMoveOriginalJ === j) ||
+								(this.blackMoveI === i && this.blackMoveJ === j)) {
+								if (this.matrix[i][j] === 0)
+									document.getElementById("i"+i+"j"+j).innerHTML = "<img src='Mark-Empty.png'>";
+								else if (this.matrix[i][j] === -5)
+									document.getElementById("i"+i+"j"+j).innerHTML = "<img src='Mark-Black-rook.png'>";
+								else if (this.matrix[i][j] === -3)
+									document.getElementById("i"+i+"j"+j).innerHTML = "<img src='Mark-Black-knight.png'>";
+								else if (this.matrix[i][j] === -4)
+									document.getElementById("i"+i+"j"+j).innerHTML = "<img src='Mark-Black-bishop.png'>";
+								else if (this.matrix[i][j] === -9)
+									document.getElementById("i"+i+"j"+j).innerHTML = "<img src='Mark-Black-queen.png'>";
+								else if (this.matrix[i][j] === -100)
+									document.getElementById("i"+i+"j"+j).innerHTML = "<img src='Mark-Black-king.png'>";
+								else if (this.matrix[i][j] === -1)
+									document.getElementById("i"+i+"j"+j).innerHTML = "<img src='Mark-Black-pawn.png'>";
+								else if (this.matrix[i][j] ===  5)
+									document.getElementById("i"+i+"j"+j).innerHTML = "<img src='Mark-White-rook.png'>";
+								else if (this.matrix[i][j] ===  3)
+									document.getElementById("i"+i+"j"+j).innerHTML = "<img src='Mark-White-knight.png'>";
+								else if (this.matrix[i][j] ===  4)
+									document.getElementById("i"+i+"j"+j).innerHTML = "<img src='Mark-White-bishop.png'>";
+								else if (this.matrix[i][j] ===  9)
+									document.getElementById("i"+i+"j"+j).innerHTML = "<img src='Mark-White-queen.png'>";
+								else if (this.matrix[i][j] ===  100)
+									document.getElementById("i"+i+"j"+j).innerHTML = "<img src='Mark-White-king.png'>";
+								else if (this.matrix[i][j] === 1)
+									document.getElementById("i"+i+"j"+j).innerHTML = "<img src='Mark-White-pawn.png'>";
+							}
+						}
+					}
+				};
+
+				// Tests if the solution is found.
+				this.solutionFound = function() {
+					var whiteKing = false;
+					var blackKing = false;
+					for (var i=0; i<8; i++)
+						for (var j=0; j<8; j++)
+							if (this.matrix[i][j] === 100)
+								whiteKing = true;
+							else if (this.matrix[i][j] === -100)
+								blackKing = true;
+					if (!(whiteKing && blackKing)) {
+						if (whiteKing)
+							this.winner = "You won !!!"+this.playAgain;
+						else
+							this.winner = "The computer won !!!"+this.playAgain;
+						return true;	
+					}
+					return false;
+				};
+				
+				// Verifies if a move is valid.
+				this.valid = function(i,j) {
+					if (this.matrix[this.moveI][this.moveJ] === 1 || this.matrix[this.moveI][this.moveJ] === -1)
+						return this.pawn(this.moveI,this.moveJ,i,j);
+					else if (this.matrix[this.moveI][this.moveJ] === 5 || this.matrix[this.moveI][this.moveJ] === -5)
+						return this.rook(this.moveI,this.moveJ,i,j,false);
+					else if (this.matrix[this.moveI][this.moveJ] === 4 || this.matrix[this.moveI][this.moveJ] === -4)
+						return this.bishop(this.moveI,this.moveJ,i,j,false);
+					else if (this.matrix[this.moveI][this.moveJ] === 9 || this.matrix[this.moveI][this.moveJ] === -9)
+						return this.bishop(this.moveI,this.moveJ,i,j,false) || this.rook(this.moveI,this.moveJ,i,j,false);
+					else if (this.matrix[this.moveI][this.moveJ] === 100 || this.matrix[this.moveI][this.moveJ] === -100)
+						return this.bishop(this.moveI,this.moveJ,i,j,true) || this.rook(this.moveI,this.moveJ,i,j,true);
+					else if (this.matrix[this.moveI][this.moveJ] === 3 || this.matrix[this.moveI][this.moveJ] === -3)
+						return this.knight(this.moveI,this.moveJ,i,j);
+				};
+
+				
+				// Verifies the move for the pawn.
+				this.pawn = function(originalI, originalJ, i, j) {
+					// If it's white.
+					if (this.matrix[originalI][originalJ] > 0) {
+						if ((j === originalJ && i === originalI-1 && this.matrix[i][j] === 0) ||
+							(j === originalJ && i === originalI-2 && originalI === 6 && this.matrix[i][j] === 0 && this.matrix[originalI-1][j] === 0) ||
+							(j === originalJ-1 && i === originalI-1 && this.matrix[i][j] < 0) ||
+							(j === originalJ+1 && i === originalI-1 && this.matrix[i][j] < 0))
+							return true;
+						else {
+							return false;
+						}
+					}
+					else
+						if ((j === originalJ && i === originalI+1 && this.matrix[i][j] === 0) ||
+							(j === originalJ && i === originalI+2 && originalI === 1 && this.matrix[i][j] === 0 && this.matrix[originalI+1][j] === 0) ||
+							(j === originalJ+1 && i === originalI+1 && this.matrix[i][j] > 0) ||
+							(j === originalJ-1 && i === originalI+1 && this.matrix[i][j] > 0))
+							return true;
+						else {
+							return false;
+						}
+				};
+
+				// Verifies the move for the rook.
+				this.rook = function(originalI, originalJ, i, j, king) {
+					var incI, incJ;
+					
+					// Defines the increment for I.
+					if (i>originalI)
+						incI = 1;
+					else if (i<originalI)
+						incI = -1;
+					else
+						incI = 0;
+
+					// Defines the increment for J.
+					if (j>originalJ)
+						incJ = 1;
+					else if (j<originalJ)
+						incJ = -1;
+					else
+						incJ = 0;
+						
+					// If it's used for the white king.
+					if (king && this.matrix[originalI][originalJ] > 0)
+						if ((j === originalJ && i === originalI+incI && this.matrix[i][j] <= 0) ||
+							(i === originalI && j === originalJ+incJ && this.matrix[i][j] <= 0))
+							return true;
+						else
+							return false;
+
+					// If it's used for the black king.
+					if (king && this.matrix[originalI][originalJ] < 0)
+						if ((j === originalJ && i === originalI+incI && this.matrix[i][j] >= 0) ||
+							(i === originalI && j === originalJ+incJ && this.matrix[i][j] >= 0))
+							return true;
+						else
+							return false;
+
+					// Checks if the horizontal path is free.
+					if (originalI === i) {
+						var cloneJ = originalJ;
+						cloneJ += incJ;
+						while (cloneJ != j) {
+							if (this.matrix[i][cloneJ] != 0)
+								return false;
+							cloneJ += incJ;
+						}
+						if (this.matrix[i][cloneJ] <= 0 && this.matrix[originalI][originalJ] > 0)
+							return true;
+						if (this.matrix[i][cloneJ] >= 0 && this.matrix[originalI][originalJ] < 0)
+							return true;
+					}
+
+					// Checks if the vertical path is free.
+					if (originalJ === j) {
+						var cloneI = originalI;
+						cloneI += incI;
+						while (cloneI != i) {
+							if (this.matrix[cloneI][j] != 0)
+								return false;
+							cloneI += incI;
+						}
+						if (this.matrix[cloneI][j] <= 0 && this.matrix[originalI][originalJ] > 0)
+							return true;
+						if (this.matrix[cloneI][j] >= 0 && this.matrix[originalI][originalJ] < 0)
+							return true;
+					}
+					return false;
+				};
+
+				// Verifies the move for the bishop.
+				this.bishop = function(originalI, originalJ, i, j, king) {
+					var incI, incJ;
+					
+					// Defines the increment for I.
+					if (i>originalI)
+						incI = 1;
+					else if (i<originalI)
+						incI = -1;
+					else
+						return false;
+
+					// Defines the increment for J.
+					if (j>originalJ)
+						incJ = 1;
+					else if (j<originalJ)
+						incJ = -1;
+					else
+						return false;
+						
+					// If it's used for the white king.
+					if (king && this.matrix[originalI][originalJ] > 0)
+						if ((j === originalJ+incJ && i === originalI+incI && this.matrix[i][j] <= 0) ||
+							(i === originalI+incI && j === originalJ+incJ && this.matrix[i][j] <= 0))
+							return true;
+						else
+							return false;
+
+					// If it's used for the black king.
+					if (king && this.matrix[originalI][originalJ] < 0)
+						if ((j === originalJ+incJ && i === originalI+incI && this.matrix[i][j] >= 0) ||
+							(i === originalI+incI && j === originalJ+incJ && this.matrix[i][j] >= 0))
+							return true;
+						else
+							return false;
+
+					// Checks if the diagonal path is free.
+					if (i - originalI === j - originalJ || originalI - i === j - originalJ) {
+						var cloneI = originalI;
+						var cloneJ = originalJ;
+						cloneI += incI;
+						cloneJ += incJ;
+						while (cloneI != i && cloneJ != j) {
+							if (this.matrix[cloneI][cloneJ] != 0)
+								return false;
+							cloneI += incI;
+							cloneJ += incJ;
+						}
+						if (this.matrix[cloneI][cloneJ] <= 0 && this.matrix[originalI][originalJ] > 0)
+							return true;
+						if (this.matrix[cloneI][cloneJ] >= 0 && this.matrix[originalI][originalJ] < 0)
+							return true;
+					}
+					return false;
+				};
+				
+				// Verifies the move for the knight.
+				this.knight = function(originalI, originalJ, i, j, king) {
+					var incI, incJ;
+					
+					// Defines the increment for I.
+					if (i>originalI)
+						incI = 1;
+					else if (i<originalI)
+						incI = -1;
+					else
+						return false;
+
+					// Defines the increment for J.
+					if (j>originalJ)
+						incJ = 1;
+					else if (j<originalJ)
+						incJ = -1;
+					else
+						return false;
+
+					// Checks the L moviment.
+					if ((i === originalI+incI && j === originalJ+incJ+incJ) ||
+						(i === originalI+incI+incI && j === originalJ+incJ)) {
+							if (this.matrix[i][j] <= 0 && this.matrix[originalI][originalJ] > 0)
+								return true;
+							if (this.matrix[i][j] >= 0 && this.matrix[originalI][originalJ] < 0)
+								return true;
+					}
+					return false;
+				
+				};
+
+				// Calculate the "evaluation".
+				this.eval = function() {
+					var total = 0;
+					for (var i=0; i<8; i++)
+						for (var j=0; j<8; j++)
+							total += this.matrix[i][j];
+					return total;
+				};
+				
+				// Create the sucessors of a state.
+				this.createStates = function(max) {
+					temp = [];
+					for (var i1=0; i1<8; i1++) {
+						for (var j1=0; j1<8; j1++) {
+						
+							// If it's a black piece.
+							if (!max && this.matrix[i1][j1] < 0) {
+								this.moveI = i1;
+								this.moveJ = j1;
+								for (var i2=0; i2<8; i2++) {
+									for (var j2=0; j2<8; j2++) {
+
+										// If it's a valid move.
+										if (this.valid(i2,j2)) {
+										
+											// Copy the original.
+											var clone = new Chess();
+											for (var i3=0; i3<8; i3++)
+												clone.matrix[i3] = this.matrix[i3].slice();
+											
+											// Makes the move.
+											clone.matrix[i2][j2] = clone.matrix[i1][j1];
+											clone.matrix[i1][j1] = 0;
+											
+											// Saves the move to show.
+											clone.blackMoveOriginalI = i1;
+											clone.blackMoveOriginalJ = j1;
+											clone.blackMoveI = i2;
+											clone.blackMoveJ = j2;
+											
+											// Put into the vector.
+											temp.push(clone);
+										}
+									}
+								}
+							}
+							
+							// If it's a white piece.
+							else if (max && this.matrix[i1][j1] > 0) {
+								this.moveI = i1;
+								this.moveJ = j1;
+								for (var i2=0; i2<8; i2++) {
+									for (var j2=0; j2<8; j2++) {
+
+										// If it's a valid move.
+										if (this.valid(i2,j2)) {
+										
+											// Copy the original.
+											var clone = new Chess();
+											for (var i3=0; i3<8; i3++)
+												clone.matrix[i3] = this.matrix[i3].slice();
+											
+											// Makes the move.
+											clone.matrix[i2][j2] = clone.matrix[i1][j1];
+											clone.matrix[i1][j1] = 0;
+											
+											// Put into the vector.
+											temp.push(clone);
+										}
+									}
+								}
+							}
+						}
+					}
+					return temp;
+				};
+			
+				// Recursive Alpha Beta Search algorithm.
+				this.alphaBetaSearch = function(max,alpha,beta,deep) {
+
+					// If it's a terminal.
+					if (deep === 4 || this.solutionFound())
+						return this.eval();
+			
+					// If "max" plays.
+					if (max) {
+						var temp = this.createStates(max);
+						var bigger = -99999999;
+						for (var i=0; i<temp.length; i++) {
+							var mx = temp[i].alphaBetaSearch(!max,alpha,beta,deep+1);
+							mx += deep;
+							if (mx >= beta)
+								return mx;
+							if (mx > bigger) {
+								bigger = mx;
+								alpha = bigger;
+								for (var j=0; j<8; j++)
+									this.sucessor[j] = temp[i].matrix[j].slice();
+									
+								// Move encapsulation.
+								this.sucessor[8] = [temp[i].blackMoveOriginalI,temp[i].blackMoveOriginalJ,temp[i].blackMoveI,temp[i].blackMoveJ];
+							}
+						}
+						return bigger;
+					}
+			
+					// If "min" plays.
+					else {
+						var temp = this.createStates(max);
+						var smaller = 99999999;
+						for (var i=0; i<temp.length; i++) {
+							var mx = temp[i].alphaBetaSearch(!max,alpha,beta,deep+1)
+							mx -= deep;
+							if (mx <= alpha)
+								return mx;
+							if (mx < smaller) {
+								smaller = mx;
+								beta = smaller;
+								for (var j=0; j<8; j++)
+									this.sucessor[j] = temp[i].matrix[j].slice();
+									
+								// Move encapsulation.
+								this.sucessor[8] = [temp[i].blackMoveOriginalI,temp[i].blackMoveOriginalJ,temp[i].blackMoveI,temp[i].blackMoveJ];
+							}
+						}
+						return smaller;
+					}
+				};
+			};
+
+			// Create instance.
+			var game = new Chess();
+			game.show();
+			// -->
+		</script>
+	</body>
+</html>
